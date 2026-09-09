@@ -1,3 +1,11 @@
+# IMPORTANT
+
+This app has not been functional since a change to the authentication system on August 31, 2026.
+Unfortunately, I currently do not have the time or the required access rights to resolve the issue. As a result, I have also disabled the corresponding Google Play Store listing.
+If you have the necessary access and would like to take over the project, feel free to fix the issue yourself.
+
+---
+
 # Campus Dual Helper
 Campus Dual Helper is an App designed to provide an alternative Interface to the Campus Dual web application. To achieve this, it uses Api Endpoints or just scrapes the website and parses it to get the necessary data.
 
