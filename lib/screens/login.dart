@@ -155,7 +155,7 @@ class _LoginState extends State<Login> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         filled: true,
-                        prefixIcon: const Icon(Ionicons.person_outline),
+                        prefixIcon: const Icon(Ionicons.personOutline),
                         labelText: "Matrikelnummer",
                         errorText: state == ValidationState.wrong
                             ? "Falsche Anmeldeinformationen"
@@ -174,7 +174,7 @@ class _LoginState extends State<Login> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         filled: true,
-                        prefixIcon: const Icon(Ionicons.key_outline),
+                        prefixIcon: const Icon(Ionicons.keyOutline),
                         labelText: "Passwort",
                         errorText: state == ValidationState.wrong
                             ? "Falsche Anmeldeinformationen"
@@ -182,7 +182,7 @@ class _LoginState extends State<Login> {
                                 ? "Bereits falsch eingegeben"
                                 : null,
                         suffixIcon: IconButton(
-                          icon: Icon(passwordVisible ? Ionicons.eye_off_outline : Ionicons.eye_outline),
+                          icon: Icon(passwordVisible ? Ionicons.eyeOffOutline : Ionicons.eyeOutline),
                           onPressed: () {
                             setState(() {
                               passwordVisible = !passwordVisible;

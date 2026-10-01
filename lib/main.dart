@@ -18,7 +18,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Fix some issues related to reinstalling the app
-  await StorageManager().fixFirstLaunchIssues();
+  try {
+    await StorageManager().fixFirstLaunchIssues();
+  } catch (e) {
+    // Don't crash the app if secure storage isn't available (e.g. on macOS dev runs without keychain entitlements)
+  }
 
   // Load campus dual certificate
   Future<ByteData> data = PlatformAssetBundle().load('assets/ca/GEANT TLS RSA 1.crt');

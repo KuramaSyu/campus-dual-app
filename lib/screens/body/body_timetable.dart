@@ -157,7 +157,7 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
                             currentDate = nowDay;
                           });
                         },
-                        child: const Icon(Ionicons.return_down_back),
+                        child: const Icon(Ionicons.returnDownBack),
                       ),
                 body: Column(
                   children: [

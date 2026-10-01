@@ -100,10 +100,10 @@ class _SyncStarterState extends State<SyncStarter> with SingleTickerProviderStat
                 backgroundColor: !isThreshold ? Theme.of(context).colorScheme.surface.withAlpha(alphaValue) : Theme.of(context).colorScheme.primary.withAlpha(alphaValue),
                 child: Icon(
                   isSyncing
-                      ? Ionicons.sync_outline
+                      ? Ionicons.syncOutline
                       : !isThreshold
-                          ? Ionicons.cloud_outline
-                          : Ionicons.cloud_download_outline,
+                          ? Ionicons.cloudOutline
+                          : Ionicons.cloudDownloadOutline,
                   color: !isThreshold ? Theme.of(context).colorScheme.primary.withAlpha(alphaValue) : Theme.of(context).colorScheme.surface.withAlpha(alphaValue),
                   size: 40,
                 ),

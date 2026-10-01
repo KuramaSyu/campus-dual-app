@@ -58,7 +58,7 @@ class _SyncIndicatorState extends State<SyncIndicator> with TickerProviderStateM
       return buildContainer(
         Colors.green,
         Icon(
-          Ionicons.checkmark_circle_outline,
+          Ionicons.checkmarkCircleOutline,
           color: color,
         ),
         " Synchronisiert",
@@ -77,7 +77,7 @@ class _SyncIndicatorState extends State<SyncIndicator> with TickerProviderStateM
       return buildContainer(
         Colors.red,
         Icon(
-          Ionicons.cloud_offline_outline,
+          Ionicons.cloudOfflineOutline,
           color: color,
         ),
         " Kein Internet",
@@ -107,7 +107,7 @@ class _SyncIndicatorState extends State<SyncIndicator> with TickerProviderStateM
       return buildContainer(
         Colors.red,
         Icon(
-          Ionicons.close_outline,
+          Ionicons.closeOutline,
           color: color,
         ),
         " Fehler",
@@ -123,7 +123,7 @@ class _SyncIndicatorState extends State<SyncIndicator> with TickerProviderStateM
       RotationTransition(
         turns: _loadingAnimation,
         child: Icon(
-          Ionicons.sync_outline,
+          Ionicons.syncOutline,
           color: color,
         ),
       ),

@@ -63,21 +63,21 @@ class _HomePageState extends State<HomePage> {
   late final List<Widget> body;
   // The list for the icons in the bottom navigation bar. Should match the body list
   List<IconData> icons = [
-    Ionicons.notifications_outline,
-    Ionicons.book_outline,
-    Ionicons.home_outline,
-    Ionicons.calendar_outline,
+    Ionicons.notificationsOutline,
+    Ionicons.bookOutline,
+    Ionicons.homeOutline,
+    Ionicons.calendarOutline,
   ];
   //This contains all actions which always popup if settings has been pressed
   List<Map<String, dynamic>> settingIcons = [
     {
-      'icon': Ionicons.musical_note,
+      'icon': Ionicons.musicalNote,
       'function': (context) {
         mainBus.emit(event: 'ToggleTheme');
       },
     },
     {
-      'icon': Ionicons.settings_outline,
+      'icon': Ionicons.settingsOutline,
       'function': (context) {
         Navigator.push(
           context,
@@ -92,7 +92,7 @@ class _HomePageState extends State<HomePage> {
     [],
     [
       {
-        'icon': Ionicons.albums_outline,
+        'icon': Ionicons.albumsOutline,
         'function': (context) {
           mainBus.emit(event: 'OpenSemesterEvaluations', args: context);
         },
@@ -101,7 +101,7 @@ class _HomePageState extends State<HomePage> {
     [],
     [
       {
-        'icon': Ionicons.calendar_outline,
+        'icon': Ionicons.calendarOutline,
         'function': (context) {
           mainBus.emit(event: 'OpenCalendar', args: context);
         },
@@ -111,7 +111,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    settingIcons[0]['icon'] = Theme.of(context).brightness == Brightness.dark ? Ionicons.sunny_outline : Ionicons.moon_outline;
+    settingIcons[0]['icon'] = Theme.of(context).brightness == Brightness.dark ? Ionicons.sunnyOutline : Ionicons.moonOutline;
     return Scaffold(
       body: SyncStarter(
         onSync: () {
@@ -174,7 +174,7 @@ class _HomePageState extends State<HomePage> {
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 15),
                 child: Icon(
-                  Ionicons.ellipsis_horizontal,
+                  Ionicons.ellipsisHorizontal,
                   size: 27,
                   color: isActive ? Theme.of(context).colorScheme.primary : null,
                 ),

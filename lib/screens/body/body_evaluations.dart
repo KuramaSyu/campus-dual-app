@@ -216,7 +216,7 @@ class _EvaluationsPageState extends State<EvaluationsPage> with AutomaticKeepAli
                                               leading: Padding(
                                                 padding: const EdgeInsets.only(left: 10, right: 10),
                                                 child: Icon(
-                                                  expandedItems.contains(subEvaluation.uniqueId) ? Ionicons.chevron_down_outline : Ionicons.chevron_forward_outline,
+                                                  expandedItems.contains(subEvaluation.uniqueId) ? Ionicons.chevronDownOutline : Ionicons.chevronForwardOutline,
                                                 ),
                                               ),
                                               title: Text(subEvaluation.title),
