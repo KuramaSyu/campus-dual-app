@@ -4,7 +4,15 @@ import 'package:flutter/material.dart';
 import "package:campus_dual_android/scripts/campus_dual_manager.models.dart";
 
 class DayCalendar extends StatefulWidget {
-  const DayCalendar({super.key, this.items, this.rules, this.startHour = 7, this.endHour = 19, this.stepSize = 50, this.useFuzzyColor = true, this.showTimeIndicator = false});
+  const DayCalendar(
+      {super.key,
+      this.items,
+      this.rules,
+      this.startHour = 7,
+      this.endHour = 19,
+      this.stepSize = 50,
+      this.useFuzzyColor = true,
+      this.showTimeIndicator = false});
 
   final List<Lesson>? items;
   final List<EvaluationRule>? rules;
@@ -83,7 +91,9 @@ class _DayCalendarState extends State<DayCalendar> {
               children: [
                 Column(
                   children: [
-                    for (final hour in List<int>.generate(widget.endHour - widget.startHour + 1, (i) => i + widget.startHour))
+                    for (final hour in List<int>.generate(
+                        widget.endHour - widget.startHour + 1,
+                        (i) => i + widget.startHour))
                       Row(
                         mainAxisSize: MainAxisSize.max,
                         children: [
@@ -101,7 +111,10 @@ class _DayCalendarState extends State<DayCalendar> {
                 for (final items in itemsStacked)
                   for (final item in items)
                     Positioned(
-                      top: (item.start.hour - widget.startHour) * widget.stepSize + item.start.minute / 60 * widget.stepSize + widget.stepSize / 2,
+                      top: (item.start.hour - widget.startHour) *
+                              widget.stepSize +
+                          item.start.minute / 60 * widget.stepSize +
+                          widget.stepSize / 2,
                       left: 50 + items.indexOf(item) * 15,
                       right: 10 + items.indexOf(item) * -5,
                       child: InkWell(
@@ -116,9 +129,11 @@ class _DayCalendarState extends State<DayCalendar> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       mainAxisSize: MainAxisSize.min,
-                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
                                       children: [
                                         Text("Raum:"),
                                         Text("Dozent:"),
@@ -130,14 +145,18 @@ class _DayCalendarState extends State<DayCalendar> {
                                     const SizedBox(width: 10),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
-                                        mainAxisAlignment: MainAxisAlignment.start,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.start,
                                         children: [
                                           Text(item.room),
                                           Text(item.instructor),
-                                          const Text("<<Leer>>"), // TODO add type
-                                          Text(item.start.toTimeDiff(item.end, showDifference: true)),
+                                          const Text(
+                                              "<<Leer>>"), // TODO add type
+                                          Text(item.start.toTimeDiff(item.end,
+                                              showDifference: true)),
                                           Text(item.description),
                                         ],
                                       ),
@@ -168,11 +187,14 @@ class _DayCalendarState extends State<DayCalendar> {
                           });
                         },
                         child: Container(
-                          height: item.end.difference(item.start).inMinutes / 60 * widget.stepSize,
+                          height: item.end.difference(item.start).inMinutes /
+                              60 *
+                              widget.stepSize,
                           decoration: BoxDecoration(
                             color: Theme.of(context).colorScheme.surface,
                             border: Border.all(
-                              color: BaColor.fromRule(widget.rules ?? [], item, widget.useFuzzyColor, context),
+                              color: BaColor.fromRule(widget.rules ?? [], item,
+                                  widget.useFuzzyColor, context),
                             ),
                             borderRadius: BorderRadius.circular(3),
                           ),
@@ -180,15 +202,20 @@ class _DayCalendarState extends State<DayCalendar> {
                             children: [
                               Container(
                                 width: 10,
-                                color: BaColor.fromRule(widget.rules ?? [], item, widget.useFuzzyColor, context),
+                                color: BaColor.fromRule(widget.rules ?? [],
+                                    item, widget.useFuzzyColor, context),
                               ),
                               Expanded(
                                 child: ListTile(
                                   isThreeLine: true,
-                                  title: Text(item.title, style: const TextStyle(overflow: TextOverflow.ellipsis)),
-                                  subtitle: Text('${item.room} \n${item.instructor}'),
+                                  title: Text(item.title,
+                                      style: const TextStyle(
+                                          overflow: TextOverflow.ellipsis)),
+                                  subtitle:
+                                      Text('${item.room} \n${item.instructor}'),
                                   // trailing: Text(item.type), // TODO maybe add later but there is no clear type given, so it will be a bit more complex to derive it from context
-                                  trailing: Text(item.start.toTimeDiff(item.end, showDifference: false)),
+                                  trailing: Text(item.start.toTimeDiff(item.end,
+                                      showDifference: false)),
                                 ),
                               ),
                             ],
@@ -201,7 +228,9 @@ class _DayCalendarState extends State<DayCalendar> {
           ),
           widget.showTimeIndicator
               ? Positioned(
-                  top: (currentTime.hour - widget.startHour) * widget.stepSize + currentTime.minute / 60 * widget.stepSize + widget.stepSize / 2,
+                  top: (currentTime.hour - widget.startHour) * widget.stepSize +
+                      currentTime.minute / 60 * widget.stepSize +
+                      widget.stepSize / 2,
                   left: 0,
                   right: 0,
                   child: Transform.translate(
@@ -216,13 +245,22 @@ class _DayCalendarState extends State<DayCalendar> {
                           child: Container(
                             height: 1,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.onPrimaryContainer.withAlpha(220),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimaryContainer
+                                  .withAlpha(220),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Theme.of(context).colorScheme.onPrimaryContainer.withAlpha(50),
-                                  spreadRadius: Theme.of(context).brightness == Brightness.light ? 1 : 0.4,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimaryContainer
+                                      .withAlpha(50),
+                                  spreadRadius: Theme.of(context).brightness ==
+                                          Brightness.light
+                                      ? 1
+                                      : 0.4,
                                   blurRadius: 2,
-                                  offset: Offset(0, 2),
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
@@ -259,7 +297,7 @@ class TrianglePainter extends CustomPainter {
     // Draw shadow
     final shadowPaint = Paint()
       ..color = Theme.of(context).colorScheme.onPrimaryContainer.withAlpha(50)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2);
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2);
 
     canvas.drawPath(path.shift(const Offset(0, 2)), shadowPaint);
     canvas.drawPath(path, paint);
