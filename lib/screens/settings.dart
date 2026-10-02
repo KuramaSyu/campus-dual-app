@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:campus_dual_android/screens/other/overrides.dart';
+import 'package:campus_dual_android/scripts/auth_strategy.dart';
 import 'package:campus_dual_android/scripts/campus_dual_manager.dart';
 import 'package:campus_dual_android/scripts/campus_dual_manager.models.dart';
 import 'package:campus_dual_android/scripts/event_bus.dart';
@@ -33,6 +34,21 @@ class _SettingsState extends State<Settings> {
     await storage.saveBool("useUntrustedHTTP", value);
   }
 
+  Future<void> _saveAuthBackend(AuthBackend value) async {
+    CampusDualManager.activeBackend = value;
+    final storage = StorageManager();
+    await storage.saveAuthBackend(value);
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _saveSeminarGroup(String value) async {
+    final trimmed = value.trim();
+    await StorageManager().saveSeminarGroup(trimmed);
+    if (!mounted) return;
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,7 +77,7 @@ class _SettingsState extends State<Settings> {
                   mainAxisSize: MainAxisSize.max,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text("Benutze zufällige Farben"),
+                    const Text("Benutze zufällige Farben"),
                     FutureBuilder(
                         future: _loadUseFuzzyColor(),
                         initialData: false,
@@ -77,7 +93,9 @@ class _SettingsState extends State<Settings> {
                                 setState(() {
                                   useFuzzyColor = value;
                                 });
-                                mainBus.emit(event: "UpdateUseFuzzyColor", args: useFuzzyColor);
+                                mainBus.emit(
+                                    event: "UpdateUseFuzzyColor",
+                                    args: useFuzzyColor);
                               },
                             );
                           });
@@ -97,10 +115,14 @@ class _SettingsState extends State<Settings> {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => const Overrides()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const Overrides()));
                   },
                   child: Container(
-                    padding: const EdgeInsets.only(top: 15, bottom: 15, left: 30, right: 30),
+                    padding: const EdgeInsets.only(
+                        top: 15, bottom: 15, left: 30, right: 30),
                     width: double.infinity,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
@@ -115,6 +137,41 @@ class _SettingsState extends State<Settings> {
                       ),
                     ),
                   ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+                child: Text(
+                  "Seminargruppe (z.B. 3IT24-1)",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(
+                    top: 4, left: 20, right: 20, bottom: 10),
+                child: FutureBuilder(
+                  future: StorageManager().loadSeminarGroup(),
+                  initialData: "",
+                  builder: (context, snapshot) {
+                    final current = snapshot.data ?? "";
+                    final controller = TextEditingController(text: current);
+                    return TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        hintText: "3IT24-1",
+                      ),
+                      onSubmitted: (value) {
+                        _saveSeminarGroup(value);
+                      },
+                      onEditingComplete: () {
+                        _saveSeminarGroup(controller.text);
+                      },
+                    );
+                  },
                 ),
               ),
               Divider(
@@ -142,13 +199,16 @@ class _SettingsState extends State<Settings> {
                             barrierDismissible: false, // user must tap button!
                             builder: (BuildContext context) {
                               return AlertDialog(
-                                title: const Text('Zertifikat-Validierung deaktivieren'),
+                                title: const Text(
+                                    'Zertifikat-Validierung deaktivieren'),
                                 content: const SingleChildScrollView(
                                   child: ListBody(
                                     children: <Widget>[
-                                      Text('Dies deaktiviert die SSL-Zertifikat-Validierung, wodurch sich Angreifer einfacher als der Campus Dual Server ausgeben können. Z.B. könnte dadurch ein Angreifer deine Anmeldedaten abfangen.'),
+                                      Text(
+                                          'Dies deaktiviert die SSL-Zertifikat-Validierung, wodurch sich Angreifer einfacher als der Campus Dual Server ausgeben können. Z.B. könnte dadurch ein Angreifer deine Anmeldedaten abfangen.'),
                                       SizedBox(height: 10),
-                                      Text('Nur aktivieren, wenn du dir der Risiken bewusst bist!'),
+                                      Text(
+                                          'Nur aktivieren, wenn du dir der Risiken bewusst bist!'),
                                     ],
                                   ),
                                 ),
@@ -188,6 +248,45 @@ class _SettingsState extends State<Settings> {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const Text(
+                " Anmeldung",
+                style: TextStyle(fontSize: 24),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 4),
+                child: Text(
+                  "Standardmaessig wird die neue Anmeldung verwendet. Wechsle hier, falls du Probleme hast.",
+                  style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.7)),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: AuthBackend.values
+                      .map((b) => RadioListTile<AuthBackend>(
+                            value: b,
+                            groupValue: CampusDualManager.activeBackend,
+                            onChanged: (value) {
+                              if (value == null) return;
+                              _saveAuthBackend(value);
+                            },
+                            title: Text(b.displayName),
+                            subtitle: Text(b.displaySubtitle),
+                            contentPadding: EdgeInsets.zero,
+                          ))
+                      .toList(),
+                ),
+              ),
+              Divider(
+                height: 40,
+                thickness: 1,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const Text(
                 " Account",
                 style: TextStyle(fontSize: 24),
               ),
@@ -202,7 +301,8 @@ class _SettingsState extends State<Settings> {
                         builder: (BuildContext context) {
                           return AlertDialog(
                             title: const Text("Abmelden"),
-                            content: const Text("Möchtest du dich wirklich abmelden? Die Einstellungen bleiben erhalten, jedoch wird der Cache gelehrt."),
+                            content: const Text(
+                                "Möchtest du dich wirklich abmelden? Die Einstellungen bleiben erhalten, jedoch wird der Cache gelehrt."),
                             actions: [
                               TextButton(
                                 child: const Text("Zurück"),
@@ -213,9 +313,12 @@ class _SettingsState extends State<Settings> {
                               TextButton(
                                 child: const Text("Abmelden"),
                                 onPressed: () {
+                                  debugPrint(
+                                      "[cda] Settings: Abmelden pressed, popping dialog + emitting Logout");
+                                  // Close the dialog; the Logout listener
+                                  // routes the rest of the stack.
+                                  Navigator.of(context).pop();
                                   mainBus.emit(event: "Logout");
-                                  Navigator.pop(context); // Close dialog
-                                  Navigator.pop(context); // Close settings
                                 },
                               ),
                             ],
@@ -223,7 +326,8 @@ class _SettingsState extends State<Settings> {
                         });
                   },
                   child: Container(
-                    padding: const EdgeInsets.only(top: 15, bottom: 15, left: 30, right: 30),
+                    padding: const EdgeInsets.only(
+                        top: 15, bottom: 15, left: 30, right: 30),
                     width: double.infinity,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
