@@ -1,0 +1,59 @@
+{
+  "d": {
+    "results": [
+      {
+        "__metadata": {
+          "uri": "EventListSet(Objid='61004443',Start=datetime'2026-05-20T06:00:00',End=datetime'2026-05-20T07:00:00')"
+        },
+        "AppointmentType": "EXAM",
+        "ExaminerName": "Prof. Dr. Thomas Nindel",
+        "LecturerName": "",
+        "Otype": "CE",
+        "Cohorts": "",
+        "LecturerObjid": "",
+        "Objid": "61004443",
+        "Remarks": "keine Hilfsmittel",
+        "EventType": "Modulpr\u00fcfung",
+        "Start": "/Date(1779256800000)/",
+        "ExamShort": "3IT-ES-00",
+        "Room": "Physik / Elektrotechnik 2.309",
+        "ExamCategory": "Praktische Pr\u00fcfung, 30 Min.",
+        "EventShort": "",
+        "End": "/Date(1779260400000)/",
+        "Location": "Staatliche Studienakademie Dresden",
+        "EventDescription": "",
+        "EventTitle": "P Embedded Systems (PR)",
+        "ExaminerObjid": "",
+        "EventStext": "P Embedded Systems (PR)"
+      },
+      {
+        "__metadata": {
+          "uri": "EventListSet(Objid='61004444',Start=datetime'2026-05-22T06:00:00',End=datetime'2026-05-22T08:00:00')"
+        },
+        "AppointmentType": "EXAM",
+        "ExaminerName": "Prof. Dr. Marius Feldmann, Dr. Dietbert G\u00fctter",
+        "Start": "/Date(1779429600000)/",
+        "End": "/Date(1779436800000)/",
+        "Room": "Seminarraum 2.234",
+        "Location": "Staatliche Studienakademie Dresden",
+        "EventTitle": "P Rechnerarchitektur / Linux (K)",
+        "EventStext": "P Rechnerarchitektur / Linux (K)",
+        "Remarks": "keine Hilfsmittel"
+      },
+      {
+        "__metadata": {
+          "uri": "EventListSet(Objid='61004445',Start=datetime'2026-09-14T06:00:00',End=datetime'2026-09-14T09:00:00')"
+        },
+        "AppointmentType": "EXAM",
+        "ExaminerName": "Prof. Dr. Daniel Gembris, Prof. Dr. Robert P\u00fcstow",
+        "Start": "/Date(1789365600000)/",
+        "End": "/Date(1789376400000)/",
+        "Room": "Seminarraum 2.234",
+        "Location": "Staatliche Studienakademie Dresden",
+        "EventTitle": "P Angewandte Signaltheorie (K)",
+        "EventStext": "P Angewandte Signaltheorie (K)",
+        "Remarks": "keine Hilfsmittel"
+      }
+    ]
+  }
+}
