@@ -26,7 +26,8 @@ class BodyOverviewData {
   });
 }
 
-class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<Overview> {
+class _OverviewState extends State<Overview>
+    with AutomaticKeepAliveClientMixin<Overview> {
   BodyOverviewData? dataCache;
 
   Stream<BodyOverviewData?> loadData() async* {
@@ -37,7 +38,10 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
       final storedCreditPoints = await storage.loadInt("creditPoints");
       final storedExamStats = await storage.loadObject("examStats");
 
-      if (storedGeneralUserData != null && storedCurrentSemester != null && storedCreditPoints != null && storedExamStats != null) {
+      if (storedGeneralUserData != null &&
+          storedCurrentSemester != null &&
+          storedCreditPoints != null &&
+          storedExamStats != null) {
         final data = BodyOverviewData(
           generalUserData: GeneralUserData.fromJson(storedGeneralUserData),
           currentSemester: storedCurrentSemester,
@@ -77,8 +81,12 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    Color primaryOverride = Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.inverseSurface : Theme.of(context).colorScheme.primary;
-    Color onPrimaryOverride = Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.onInverseSurface : Theme.of(context).colorScheme.onPrimary;
+    Color primaryOverride = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.inverseSurface
+        : Theme.of(context).colorScheme.primary;
+    Color onPrimaryOverride = Theme.of(context).brightness == Brightness.dark
+        ? Theme.of(context).colorScheme.onInverseSurface
+        : Theme.of(context).colorScheme.onPrimary;
 
     return StreamBuilder(
       initialData: dataCache,
@@ -127,7 +135,9 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                     width: 10,
                                   ),
                                   Text(
-                                    dataHasArrived ? "${data.generalUserData.firstName} (${CampusDualManager.userCreds!.username})" : '...',
+                                    dataHasArrived
+                                        ? "${data.generalUserData.firstName} (${CampusDualManager.userCreds!.username})"
+                                        : '...',
                                     style: TextStyle(
                                       color: onPrimaryOverride,
                                       fontSize: 22,
@@ -152,7 +162,9 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                     width: 10,
                                   ),
                                   Text(
-                                    dataHasArrived ? data.generalUserData.group : '...',
+                                    dataHasArrived
+                                        ? data.generalUserData.group
+                                        : '...',
                                     style: TextStyle(
                                       color: onPrimaryOverride,
                                       fontSize: 22,
@@ -183,11 +195,15 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Theme.of(context).scaffoldBackgroundColor,
-                    borderRadius: const BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
-                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+                    borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(20),
+                        topRight: Radius.circular(20)),
+                    border: Border.all(
+                        color: Theme.of(context).colorScheme.surface, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Theme.of(context).colorScheme.shadow.withAlpha(70),
+                        color:
+                            Theme.of(context).colorScheme.shadow.withAlpha(70),
                         blurRadius: 10.0,
                       ),
                     ],
@@ -196,18 +212,20 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                     physics: const ScrollPhysics(),
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 10, left: 10, right: 10),
+                        padding: const EdgeInsets.only(
+                            bottom: 10, left: 10, right: 10),
                         child: Text(
                           dataHasArrived ? data.generalUserData.course : '',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 19,
                             overflow: TextOverflow.clip,
                           ),
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 20, left: 20, right: 20),
+                        padding:
+                            const EdgeInsets.only(top: 20, left: 20, right: 20),
                         child: Row(
                           mainAxisSize: MainAxisSize.max,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -225,8 +243,11 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                   child: LinearProgressIndicator(
                                     minHeight: 15,
                                     borderRadius: BorderRadius.circular(6),
-                                    value: dataHasArrived ? data.currentSemester / 6 : 0,
-                                    valueColor: AlwaysStoppedAnimation<Color>(primaryOverride),
+                                    value: dataHasArrived
+                                        ? data.currentSemester / 6
+                                        : 0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        primaryOverride),
                                   ),
                                 ),
                               ],
@@ -244,8 +265,11 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                   child: LinearProgressIndicator(
                                     minHeight: 15,
                                     borderRadius: BorderRadius.circular(6),
-                                    value: dataHasArrived ? data.creditPoints / 180 : 0,
-                                    valueColor: AlwaysStoppedAnimation<Color>(primaryOverride),
+                                    value: dataHasArrived
+                                        ? data.creditPoints / 180
+                                        : 0,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        primaryOverride),
                                   ),
                                 ),
                               ],
@@ -265,26 +289,42 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                     color: primaryOverride,
                                     value: dataHasArrived ? 0 : 1,
                                     title: "Lädt...",
-                                    titleStyle: TextStyle(color: onPrimaryOverride),
+                                    titleStyle:
+                                        TextStyle(color: onPrimaryOverride),
                                     radius: 125,
                                   ),
                                   PieChartSectionData(
                                     color: primaryOverride,
-                                    value: dataHasArrived ? data.examStats.success / data.examStats.exams : 0,
-                                    title: dataHasArrived ? "${(data.examStats.success / data.examStats.exams * 100).toStringAsFixed(0)}%" : "Lädt...",
-                                    titleStyle: TextStyle(color: onPrimaryOverride),
+                                    value: dataHasArrived
+                                        ? data.examStats.success /
+                                            data.examStats.exams
+                                        : 0,
+                                    title: dataHasArrived
+                                        ? "${(data.examStats.success / data.examStats.exams * 100).toStringAsFixed(0)}%"
+                                        : "Lädt...",
+                                    titleStyle:
+                                        TextStyle(color: onPrimaryOverride),
                                     radius: 125,
                                   ),
                                   PieChartSectionData(
                                     color: Theme.of(context).colorScheme.error,
-                                    value: dataHasArrived ? data.examStats.failure / data.examStats.exams : 0,
-                                    title: dataHasArrived ? "${(data.examStats.failure / data.examStats.exams * 100).toStringAsFixed(0)}%" : "Lädt...",
-                                    titleStyle: TextStyle(color: Theme.of(context).colorScheme.onError),
+                                    value: dataHasArrived
+                                        ? data.examStats.failure /
+                                            data.examStats.exams
+                                        : 0,
+                                    title: dataHasArrived
+                                        ? "${(data.examStats.failure / data.examStats.exams * 100).toStringAsFixed(0)}%"
+                                        : "Lädt...",
+                                    titleStyle: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onError),
                                     radius: 125,
                                   ),
                                 ],
                               ),
-                              swapAnimationDuration: const Duration(milliseconds: 150),
+                              swapAnimationDuration:
+                                  const Duration(milliseconds: 150),
                               swapAnimationCurve: Curves.linear,
                             ),
                           ),
@@ -297,7 +337,8 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                               children: [
                                 Row(
                                   mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Prüfungsversuche insgesamt:',
@@ -305,12 +346,14 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Text('${dataHasArrived ? data.examStats.exams : "..."}'),
+                                    Text(
+                                        '${dataHasArrived ? data.examStats.exams : "..."}'),
                                   ],
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Container(
                                       height: 12,
@@ -318,25 +361,30 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                       color: primaryOverride,
                                     ),
                                     const Text('mit Erfolg abgeschlossen:'),
-                                    Text('${dataHasArrived ? data.examStats.success : "..."}'),
+                                    Text(
+                                        '${dataHasArrived ? data.examStats.success : "..."}'),
                                   ],
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Container(
                                       height: 12,
                                       width: 12,
-                                      color: Theme.of(context).colorScheme.error,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
                                     ),
                                     const Text('ohne Erfolg abgeschlossen:'),
-                                    Text('${dataHasArrived ? data.examStats.failure : "..."}'),
+                                    Text(
+                                        '${dataHasArrived ? data.examStats.failure : "..."}'),
                                   ],
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Gebuchte Module:',
@@ -344,12 +392,14 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Text('${dataHasArrived ? data.examStats.mBooked : "..."}'),
+                                    Text(
+                                        '${dataHasArrived ? data.examStats.mBooked : "..."}'),
                                   ],
                                 ),
                                 Row(
                                   mainAxisSize: MainAxisSize.max,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     const Text(
                                       'Abgeschlossene Module:',
@@ -357,7 +407,8 @@ class _OverviewState extends State<Overview> with AutomaticKeepAliveClientMixin<
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    Text('${dataHasArrived ? data.examStats.modules : "..."}'),
+                                    Text(
+                                        '${dataHasArrived ? data.examStats.modules : "..."}'),
                                   ],
                                 ),
                               ],

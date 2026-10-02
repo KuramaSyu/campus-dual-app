@@ -25,7 +25,8 @@ class _LoginState extends State<Login> {
   final TextEditingController _passwordController = TextEditingController();
   bool _forceMode = false;
 
-  Future<UserCredentials?> _testCredentials(String username, String password) async {
+  Future<UserCredentials?> _testCredentials(
+      String username, String password) async {
     if (username == "11111" && password == "11111") {
       return UserCredentials(username, password, "hashy", true);
     }
@@ -36,8 +37,7 @@ class _LoginState extends State<Login> {
     } catch (e) {
       debugPrint(e.toString());
       if (!e.toString().contains("Failed to login")) {
-        // We take "Failed to login" as the default error for wrong credentials
-        // Anything else is considered a connection error and enables the force mode
+        // Anything but a credential error is a connection error; show force mode.
         setState(() {
           _forceMode = true;
         });
@@ -54,7 +54,6 @@ class _LoginState extends State<Login> {
   ValidationState _validateInput(String username, String password) {
     for (final entry in lastErrors) {
       if (entry["username"] == username && entry["password"] == password) {
-        // check, if the current entry is the newest in the list
         if (lastErrors.indexOf(entry) == lastErrors.length - 1) {
           return ValidationState.wrong;
         }
@@ -81,10 +80,11 @@ class _LoginState extends State<Login> {
     if (force) {
       CampusDualManager.insecureMode = true;
     }
-    final userCreds = await _testCredentials(_usernameController.text, _passwordController.text);
+    final userCreds = await _testCredentials(
+        _usernameController.text, _passwordController.text);
     final elapsed = stopwatch.elapsed;
 
-    // Make sure the loading spinner is shown for at least 1 second
+    // Show the spinner for at least 1 second.
     if (elapsed < const Duration(seconds: 1)) {
       await Future.delayed(const Duration(seconds: 1) - elapsed);
     }
@@ -108,9 +108,12 @@ class _LoginState extends State<Login> {
 
   @override
   Widget build(BuildContext context) {
-    ValidationState state = _validateInput(_usernameController.text, _passwordController.text);
+    ValidationState state =
+        _validateInput(_usernameController.text, _passwordController.text);
     return Scaffold(
-      backgroundColor: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.inverseSurface : Theme.of(context).colorScheme.primary,
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Theme.of(context).colorScheme.inverseSurface
+          : Theme.of(context).colorScheme.primary,
       body: SizedBox.expand(
         child: SafeArea(
           child: Column(
@@ -122,7 +125,9 @@ class _LoginState extends State<Login> {
                 style: TextStyle(
                   fontSize: 40,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).brightness == Brightness.dark ? Theme.of(context).colorScheme.onInverseSurface : Theme.of(context).colorScheme.onPrimary,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Theme.of(context).colorScheme.onInverseSurface
+                      : Theme.of(context).colorScheme.onPrimary,
                 ),
               ),
               Container(
@@ -147,7 +152,8 @@ class _LoginState extends State<Login> {
                   children: [
                     TextField(
                       onChanged: (value) => setState(() {}),
-                      keyboardType: const TextInputType.numberWithOptions(decimal: false, signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: false, signed: true),
                       textInputAction: TextInputAction.next,
                       controller: _usernameController,
                       decoration: InputDecoration(
@@ -182,7 +188,9 @@ class _LoginState extends State<Login> {
                                 ? "Bereits falsch eingegeben"
                                 : null,
                         suffixIcon: IconButton(
-                          icon: Icon(passwordVisible ? Ionicons.eyeOffOutline : Ionicons.eyeOutline),
+                          icon: Icon(passwordVisible
+                              ? Ionicons.eyeOffOutline
+                              : Ionicons.eyeOutline),
                           onPressed: () {
                             setState(() {
                               passwordVisible = !passwordVisible;
@@ -191,11 +199,15 @@ class _LoginState extends State<Login> {
                         ),
                       ),
                     ),
-                    _forceMode && (state == ValidationState.wrong || state == ValidationState.lastWrong)
+                    _forceMode &&
+                            (state == ValidationState.wrong ||
+                                state == ValidationState.lastWrong)
                         ? ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
@@ -205,18 +217,24 @@ class _LoginState extends State<Login> {
                                 : () => {
                                       showDialog<void>(
                                         context: context,
-                                        barrierDismissible: false, // user must tap button!
+                                        barrierDismissible:
+                                            false, // user must tap button!
                                         builder: (BuildContext context) {
                                           return AlertDialog(
-                                            title: const Text('Login erzwingen'),
-                                            content: const SingleChildScrollView(
+                                            title:
+                                                const Text('Login erzwingen'),
+                                            content:
+                                                const SingleChildScrollView(
                                               child: ListBody(
                                                 children: <Widget>[
-                                                  Text('Möchtest du den Login wirklich erzwingen?'),
+                                                  Text(
+                                                      'Möchtest du den Login wirklich erzwingen?'),
                                                   SizedBox(height: 10),
-                                                  Text('Damit wird das SSL-Zertifikat des Campus Dual Servers nicht mehr überprüft. Dies kann ein Sicherheitsrisiko darstellen.'),
+                                                  Text(
+                                                      'Damit wird das SSL-Zertifikat des Campus Dual Servers nicht mehr überprüft. Dies kann ein Sicherheitsrisiko darstellen.'),
                                                   SizedBox(height: 10),
-                                                  Text('Beachte außerdem, dass die wiederholte Eingabe falscher Anmeldeinformationen zu einer Sperrung deines Accounts führen kann.'),
+                                                  Text(
+                                                      'Beachte außerdem, dass die wiederholte Eingabe falscher Anmeldeinformationen zu einer Sperrung deines Accounts führen kann.'),
                                                 ],
                                               ),
                                             ),
@@ -240,7 +258,8 @@ class _LoginState extends State<Login> {
                                       ),
                                     },
                             child: Padding(
-                              padding: const EdgeInsets.only(left: 40, right: 40, top: 15, bottom: 15),
+                              padding: const EdgeInsets.only(
+                                  left: 40, right: 40, top: 15, bottom: 15),
                               child: isLoading
                                   ? const CircularProgressIndicator()
                                   : const Text(
@@ -251,15 +270,20 @@ class _LoginState extends State<Login> {
                           )
                         : ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              backgroundColor: Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            onPressed: state == ValidationState.valid ? () => _login(false) : null,
+                            onPressed: state == ValidationState.valid
+                                ? () => _login(false)
+                                : null,
                             child: Padding(
-                              padding: const EdgeInsets.only(left: 40, right: 40, top: 15, bottom: 15),
+                              padding: const EdgeInsets.only(
+                                  left: 40, right: 40, top: 15, bottom: 15),
                               child: isLoading
                                   ? const CircularProgressIndicator()
                                   : const Text(

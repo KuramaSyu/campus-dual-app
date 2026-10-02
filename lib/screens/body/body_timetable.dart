@@ -18,10 +18,8 @@ class TimeTable extends StatefulWidget {
   State<TimeTable> createState() => _TimeTableState();
 }
 
-class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixin<TimeTable> {
-  static const bufferSize = 365;
-  static const includePast = true; // TODO implement
-
+class _TimeTableState extends State<TimeTable>
+    with AutomaticKeepAliveClientMixin<TimeTable> {
   final GlobalKey _dateSectionKey = GlobalKey();
 
   Map<DateTime, List<Lesson>>? dataCache;
@@ -47,7 +45,8 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
   void dispose() {
     mainBus.offBus(event: "OpenCalendar", callBack: _openCalendar);
     mainBus.offBus(event: "UpdateRules", callBack: _changeRules);
-    mainBus.offBus(event: "UpdateUseFuzzyColor", callBack: _changeUseFuzzyColor);
+    mainBus.offBus(
+        event: "UpdateUseFuzzyColor", callBack: _changeUseFuzzyColor);
     super.dispose();
   }
 
@@ -67,7 +66,10 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
 
       final storedData = await storage.loadObject("timetable");
       if (storedData != null) {
-        final data = storedData.map((key, value) => MapEntry(DateTime.parse(key), (value as List).map((e) => Lesson.fromJson(e)).toList())).cast<DateTime, List<Lesson>>();
+        final data = storedData
+            .map((key, value) => MapEntry(DateTime.parse(key),
+                (value as List).map((e) => Lesson.fromJson(e)).toList()))
+            .cast<DateTime, List<Lesson>>();
         dataCache = dataCache ?? data;
         yield data;
       }
@@ -76,9 +78,23 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
     }
 
     final cd = CampusDualManager();
-    final lessons = await cd.fetchTimeTable(nowDay.subtract(const Duration(days: bufferSize)), nowDay.add(const Duration(days: bufferSize)));
+    final stundenplanLessons = await cd.fetchStundenplan();
+    Map<DateTime, List<Lesson>> lessons = stundenplanLessons;
+    if (lessons.isEmpty) {
+      // Fall back to the OData v2 timetable if the BA-Dresden one is
+      // unavailable (cookie expired, etc.).
+      lessons = await cd.fetchTimeTable(
+        nowDay.subtract(const Duration(days: 7)),
+        nowDay.add(const Duration(days: 182)),
+      );
+    }
     storage.saveDateTime("timetableUpdateTime", DateTime.now());
-    storage.saveObject("timetable", lessons.map((key, value) => MapEntry(key.toIso8601String(), value.map((e) => e.toJson()).toList()))).then((_) => updateWidget());
+    storage
+        .saveObject(
+            "timetable",
+            lessons.map((key, value) => MapEntry(
+                key.toIso8601String(), value.map((e) => e.toJson()).toList())))
+        .then((_) => updateWidget());
     dataCache = lessons;
     yield lessons;
   }
@@ -103,7 +119,9 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
   }
 
   void _changeRules(dynamic args) {
-    StorageManager().saveObjectList("evaluationRules", args).then((_) => updateWidget());
+    StorageManager()
+        .saveObjectList("evaluationRules", args)
+        .then((_) => updateWidget());
 
     _dateSectionKey.currentState!.setState(() {
       rules = args;
@@ -111,7 +129,9 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
   }
 
   void _changeUseFuzzyColor(dynamic args) {
-    StorageManager().saveBool("useFuzzyColor", args).then((_) => updateWidget());
+    StorageManager()
+        .saveBool("useFuzzyColor", args)
+        .then((_) => updateWidget());
 
     _dateSectionKey.currentState!.setState(() {
       useFuzzyColor = args;
@@ -189,7 +209,8 @@ class _TimeTableState extends State<TimeTable> with AutomaticKeepAliveClientMixi
                           endHour: 20,
                           stepSize: 65,
                           useFuzzyColor: useFuzzyColor,
-                          showTimeIndicator: DateTime.now().trim() == currentDate,
+                          showTimeIndicator:
+                              DateTime.now().trim() == currentDate,
                         ),
                       ),
                     ),

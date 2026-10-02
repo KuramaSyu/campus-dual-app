@@ -11,11 +11,7 @@ import 'homepage.dart';
 import 'login.dart';
 
 /// In-app WebView login screen used by the OPAL strategy.
-///
-/// The user enters username/password + passkey on the IdP page rendered
-/// inside the WebView. Once the SAML callback returns to the portal, we
-/// capture the session cookies via [OpalSamlStrategy.captureAndPersistCookies]
-/// and emit a [Login] event with a placeholder hash.
+/// Captures cookies on SAML success and emits a Login event.
 class LoginWebView extends StatefulWidget {
   const LoginWebView({super.key});
 
@@ -23,31 +19,31 @@ class LoginWebView extends StatefulWidget {
   State<LoginWebView> createState() => LoginWebViewState();
 }
 
-/// Public for tests so [GlobalKey]&lt;[LoginWebViewState]&gt; can be used to
-/// drive the success path without spinning up a real WebView platform.
+/// State exposed via GlobalKey for widget tests.
 @visibleForTesting
 class LoginWebViewState extends State<LoginWebView> {
   final OpalSamlStrategy _strategy = OpalSamlStrategy();
   bool _resolving = false;
   String? _statusMessage;
   int _nonce = 0;
+  WebViewController? _controller;
 
-  /// Runs once the WebView lands on a URL we treat as authenticated.
-  ///
-  /// Captures the session cookies out of the WebView cookie jar, persists
-  /// them via [StorageManager.saveApiCookies], and emits a [Login] event so
-  /// the app swaps to [HomePage]. No navigator pop: LoginWebView is the
-  /// root `MaterialApp.home`, so popping leaves an empty Navigator stack
-  /// which Flutter paints black on macOS.
-  ///
-  /// Exposed (visible-for-testing) so the success path can be exercised in
-  /// a widget test without spinning up a real WebView platform.
+  /// Capture cookies, emit Login, then push HomePage.
+  /// No pop: LoginWebView is the root MaterialApp.home, so popping
+  /// leaves an empty stack that Flutter paints black on macOS.
   @visibleForTesting
   Future<void> onLoginSuccess(String landingUrl) async {
     debugPrint("[cda] LoginWebView.onLoginSuccess url=$landingUrl");
     if (_resolving) return;
     _resolving = true;
     try {
+      if (_controller != null) {
+        debugPrint(
+            "[cda] LoginWebView.onLoginSuccess: bootstrap SAP session via WS");
+        await _strategy.ensureSapSessionCookie(_controller!);
+        // Give the cookie store a moment to record Set-Cookie before capture.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
       debugPrint(
           "[cda] LoginWebView.onLoginSuccess: captureAndPersistCookies...");
       await _strategy.captureAndPersistCookies();
@@ -57,10 +53,7 @@ class LoginWebViewState extends State<LoginWebView> {
       if (!mounted) return;
       mainBus.emit(event: "Login", args: placeholder);
       debugPrint("[cda] LoginWebView.onLoginSuccess: Login event emitted");
-      // LoginWebView is the root MaterialApp.home. After the Login event
-      // sets userCreds, force a Navigator rebuild that swaps the stack to
-      // HomePage directly. pushAndRemoveUntil avoids the black frame a
-      // synchronous Navigator.pop produces.
+      // pushAndRemoveUntil avoids the black frame a synchronous pop produces.
       if (!mounted) return;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         debugPrint(
@@ -97,9 +90,8 @@ class LoginWebViewState extends State<LoginWebView> {
   Widget build(BuildContext context) {
     debugPrint(
         "[cda] LoginWebView.build: nonce=$_nonce status=_statusMessage mounted=$mounted");
-    // Built per rebuild so the ValueKey trick in setState can hand the
-    // WebViewWidget a fresh controller after reload / "Try again".
-    final controller = _strategy.buildWebViewController(
+    // Rebuilt so the ValueKey can swap the controller on Reload.
+    _controller = _strategy.buildWebViewController(
       onSuccess: onLoginSuccess,
       onError: onLoginError,
     );
@@ -138,10 +130,8 @@ class LoginWebViewState extends State<LoginWebView> {
       ),
       body: Stack(
         children: [
-          // Keyed on _nonce so the "Try again" / reload button hands a fresh
-          // controller to the widget without leaking listeners from the
-          // previous one.
-          WebViewWidget(key: ValueKey(_nonce), controller: controller),
+          // Keyed on _nonce so Reload hands a fresh controller.
+          WebViewWidget(key: ValueKey(_nonce), controller: _controller!),
           if (_statusMessage != null)
             Positioned(
               left: 0,

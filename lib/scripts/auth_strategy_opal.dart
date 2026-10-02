@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
@@ -9,22 +11,13 @@ import 'campus_dual_manager.dart';
 import 'campus_dual_manager.models.dart';
 import 'storage_manager.dart';
 
-/// Login backend for the OPAL SAML/launchpad portal at fep.campus-dual.de.
-///
-/// Two flavors:
-/// - [login] replays the session cookies captured by an earlier WebView
-///   login. This is the hot path used by every screen after the first launch.
-/// - [loginViaWebView] launches the IdP in an in-app WebView so the user can
-///   complete the SAML + passkey step. On landing at the portal we extract
-///   the session cookies and persist them for [login] to replay later.
+/// OPAL SAML login backend for fep.campus-dual.de.
+/// [login] replays captured cookies; the in-app WebView flow captures them.
 class OpalSamlStrategy implements AuthStrategy {
-  /// Final URL we expect to land on once SAML + passkey succeed.
+  /// Final landing URL after SAML completes.
   static const String portalHome = "https://fep.campus-dual.de/portal";
 
-  /// Hostname of the IdP. The IdP routes a few different paths during
-  /// the SAML flow (/login for the password form, /2fa for the second
-  /// factor challenge, then back through fep's /sap/saml2/sp/acs/...).
-  /// We treat any URL on this host as evidence SAML is in progress.
+  /// IdP host. Any path on this host is proof SAML is in progress.
   static const String idpHost = "idp.dhsn.de";
   static const String cookieDomain = "fep.campus-dual.de";
 
@@ -56,11 +49,8 @@ class OpalSamlStrategy implements AuthStrategy {
   }
 
   /// Build a controller for the in-app WebView login flow.
-  ///
-  /// [onSuccess] fires once the WebView lands on a URL we consider
-  /// authenticated (see [_isAuthenticatedUrl]).
-  /// [onError] fires if the user is bounced back to the IdP login page
-  /// (auth failure) or the WebView itself errors out.
+  /// [onSuccess] fires on a portal landing preceded by an IdP round-trip.
+  /// [onError] fires on auth failure or WebView error.
   WebViewController buildWebViewController({
     required void Function(String landingUrl) onSuccess,
     required void Function(Object error) onError,
@@ -79,11 +69,8 @@ class OpalSamlStrategy implements AuthStrategy {
             _visitedIdp = true;
           } else if (_isAuthenticatedUrl(url)) {
             _visitedPortalOnce = true;
-            // Only treat the portal as success if we previously touched the IdP.
-            // Without the round-trip we have no proof SAML took place - on
-            // macOS dev runs (or any session-less launch) the portal page
-            // itself lands here first and would otherwise declare success
-            // before the IdP challenge is shown.
+            // Require an IdP round-trip; portal-only landings on first
+            // paint must not declare success.
             if (_visitedIdp) {
               debugPrint(
                   "[cda] OpalSaml: -> onSuccess (post-SAML portal landing)");
@@ -93,10 +80,7 @@ class OpalSamlStrategy implements AuthStrategy {
                   "[cda] OpalSaml: -> portal hit but IdP never visited, waiting");
             }
           } else if (_isSamlAcsUrl(url)) {
-            // The ACS endpoint is the SAP-side callback the IdP POSTs the
-            // SAML assertion to. It runs after the IdP has finished and
-            // before the final portal landing, so seeing it is also proof
-            // the user came through the SAML flow.
+            // SAP-side ACS endpoint between IdP response and final landing.
             debugPrint("[cda] OpalSaml: -> SAML ACS endpoint hit");
             _visitedIdp = true;
           }
@@ -108,8 +92,6 @@ class OpalSamlStrategy implements AuthStrategy {
         onWebResourceError: (error) {
           debugPrint(
               "[cda] OpalSaml: onWebResourceError code=${error.errorCode} desc=${error.description}");
-          // The launchpad fires benign resource errors while loading tiles;
-          // only surface real network-level failures.
           if (error.errorCode != -999 /* cancelled */) {
             onError(error.description);
           }
@@ -128,9 +110,7 @@ class OpalSamlStrategy implements AuthStrategy {
   /// True once the SAML callback has bounced back to the portal.
   bool _isAuthenticatedUrl(String url) => url.startsWith(portalHome);
 
-  /// True if the URL is on the IdP host (any path). Used as evidence SAML
-  /// is in progress - the IdP routes /login for credentials and /2fa for
-  /// the second factor; both are proof the round-trip happened.
+  /// True for any URL on the IdP host.
   bool _isIdpUrl(String url) {
     try {
       return Uri.parse(url).host == idpHost;
@@ -139,24 +119,14 @@ class OpalSamlStrategy implements AuthStrategy {
     }
   }
 
-  /// True for the SAP-side SAML assertion consumer endpoint. This sits
-  /// between the IdP response and the final portal landing.
+  /// True for the SAP-side SAML assertion consumer endpoint.
   bool _isSamlAcsUrl(String url) =>
       url.startsWith("https://fep.campus-dual.de/sap/saml2/sp/acs/");
 
-  /// Read cookies out of the WebView cookie jar and persist them via
-  /// [StorageManager.saveApiCookies] so [login] can replay them into a
-  /// fresh [CookieClient].
-  ///
-  /// The launchpad hosts its tiles on `selfservice.campus-dual.de` and
-  /// issues the SAP session cookie (`SAP_SESSIONID_FEP_100`) at a
-  /// subdomain scope we can't predict up front, so we capture cookies
-  /// from every *.campus-dual.de host the WebView knows about instead
-  /// of filtering on `cookieDomain`. The replays include all of them;
-  /// the [CookieClient] jar only sends the ones matching the request
-  /// host, so over-capturing is safe.
-  ///
-  /// Returns the cookie list it wrote (useful for tests).
+  /// Capture cookies across likely hosts and persist them.
+  /// The launchpad tiles live on selfservice.campus-dual.de; the SAP
+  /// session cookie can land on a subdomain we can't predict up front.
+  /// CookieClient only sends cookies matching the request host.
   Future<List<Map<String, String>>> captureAndPersistCookies({
     WebViewCookieManager? manager,
   }) async {
@@ -171,8 +141,7 @@ class OpalSamlStrategy implements AuthStrategy {
     ];
     for (final host in hostsToCheck) {
       final cookies = await mgr.getCookies(domain: Uri.parse("https://$host"));
-      debugPrint(
-          "[cda] OpalSaml.capture: $host -> ${cookies.length} cookies");
+      debugPrint("[cda] OpalSaml.capture: $host -> ${cookies.length} cookies");
       for (final c in cookies) {
         final key = "${c.domain}|${c.path}|${c.name}|${c.value.length}";
         if (seen.add(key)) {
@@ -187,14 +156,49 @@ class OpalSamlStrategy implements AuthStrategy {
         }
       }
     }
+    final names = combined.map((c) => c["name"]).toSet();
+    final hasSession = names.contains("SAP_SESSIONID_FEP_100");
+    debugPrint(
+        "[cda] OpalSaml.capture: SAP_SESSIONID_FEP_100 present=$hasSession names=$names");
     await StorageManager().saveApiCookies(combined);
     debugPrint(
         "[cda] OpalSaml.capture: saved ${combined.length} cookies total");
     return combined;
   }
 
-  /// Wipe stored cookies. Used by the Logout flow so the next launch goes
-  /// through the WebView again.
+  /// Drive an authenticated fetch from inside the WebView so SAP installs
+  /// SAP_SESSIONID_FEP_100 on the cookie jar. The portal landing page
+  /// alone doesn't trigger it; the launchpad shell sits idle until a tile
+  /// is clicked. We hit start_up directly because the WebView sends the
+  /// HttpOnly MYSAPSSO2 cookie automatically.
+  ///
+  /// Returns silently on success or exception -- the only requirement is that
+  /// the fetch is fired so SAP sends its Set-Cookie response. We don't read
+  /// the response body here; the caller waits then re-reads via
+  /// [WebViewCookieManager.getCookies].
+  Future<void> ensureSapSessionCookie(WebViewController controller) async {
+    const endpoint = "https://fep.campus-dual.de/sap/bc/ui2/start_up"
+        "?so=zcm_studierenden_stplan_v2&action=display"
+        "&formFactor=desktop&shellType=FLP&depth=0";
+    debugPrint("[cda] OpalSaml.ensureSapSessionCookie: fetch $endpoint");
+    try {
+      // runJavaScriptReturningResult can't bridge a Promise back to Dart,
+      // which is why the previous version threw FWFEvaluateJavaScriptError
+      // on macOS. runJavaScript is fire-and-forget and handles async fine.
+      await controller.runJavaScript('''
+      fetch('$endpoint', {credentials: 'include'}).catch(() => {});
+    ''')
+          .timeout(const Duration(seconds: 5));
+      debugPrint("[cda] OpalSaml.ensureSapSessionCookie: fetch fired");
+    } on TimeoutException {
+      debugPrint("[cda] OpalSaml.ensureSapSessionCookie: timed out");
+    } catch (e) {
+      debugPrint(
+          "[cda] OpalSaml.ensureSapSessionCookie: threw $e (ignored, Set-Cookie may still have arrived)");
+    }
+  }
+
+  /// Wipe stored cookies. Used by the Logout flow.
   Future<void> clearStoredCookies() => StorageManager().clearApiCookies();
 
   /// True if a previously captured session is still cached locally.
@@ -205,14 +209,12 @@ class OpalSamlStrategy implements AuthStrategy {
   }
 
   /// Build a CookieClient preloaded with cookies from disk.
-  /// Exposed so tests can poke at the replayed jar without spinning up a
-  /// full WebView.
+  /// Caller must pre-load cookies when overrideCookies is null.
   @visibleForTesting
   static CookieClient buildClientFromStorage({
     List<Map<String, String>>? overrideCookies,
     http.Client? innerClient,
   }) {
-    // Caller must pre-load cookies when overrideCookies is null.
     final cookies = overrideCookies ?? const <Map<String, String>>[];
     final client = CookieClient(inner: innerClient ?? IOClient());
     for (final c in cookies) {
@@ -230,11 +232,7 @@ class OpalSamlStrategy implements AuthStrategy {
     );
   }
 
-  // Tracks whether the WebView has actually performed SAML. The launchpad
-  // page itself loads at /portal before the SAML redirect chain runs, so
-  // a naive URL-prefix check would declare success on the very first
-  // navigation. We require an IdP visit before the portal counts as
-  // authenticated.
+  // Round-trip tracking; see buildWebViewController for the rationale.
   bool _visitedIdp = false;
   bool _visitedPortalOnce = false;
 }

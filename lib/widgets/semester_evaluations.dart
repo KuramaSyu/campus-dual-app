@@ -15,8 +15,10 @@ class _SemesterEvaluationsState extends State<SemesterEvaluations> {
   final Map<String, List<Evaluation>> _groupedItems = {};
 
   double calculateAverage(List<Evaluation> evaluations) {
-    final validEvaluations = evaluations.where((evaluation) => evaluation.grade != -1);
-    final sum = validEvaluations.fold(0.0, (total, evaluation) => total + evaluation.grade);
+    final validEvaluations =
+        evaluations.where((evaluation) => evaluation.grade != -1);
+    final sum = validEvaluations.fold(
+        0.0, (total, evaluation) => total + evaluation.grade);
     return sum / validEvaluations.length;
   }
 
@@ -40,7 +42,7 @@ class _SemesterEvaluationsState extends State<SemesterEvaluations> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Semester"),
+        title: const Text("Semester"),
       ),
       body: SingleChildScrollView(
         physics: const ScrollPhysics(),
@@ -53,19 +55,25 @@ class _SemesterEvaluationsState extends State<SemesterEvaluations> {
                   padding: const EdgeInsets.only(bottom: 25),
                   child: Column(
                     children: [
-                      Divider(),
+                      const Divider(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         mainAxisSize: MainAxisSize.max,
                         children: [
                           Container(
-                            padding: const EdgeInsets.only(left: 10, right: 10, top: 5, bottom: 5),
+                            padding: const EdgeInsets.only(
+                                left: 10, right: 10, top: 5, bottom: 5),
                             decoration: BoxDecoration(
-                              border: Border.fromBorderSide(BorderSide(color: Theme.of(context).colorScheme.primary)),
-                              borderRadius: BorderRadius.all(Radius.circular(5)),
+                              border: Border.fromBorderSide(BorderSide(
+                                  color:
+                                      Theme.of(context).colorScheme.primary)),
+                              borderRadius:
+                                  const BorderRadius.all(Radius.circular(5)),
                             ),
                             child: Text(
-                              calculateAverage(semester.value).toStringAsFixed(2).replaceAll(".", ","),
+                              calculateAverage(semester.value)
+                                  .toStringAsFixed(2)
+                                  .replaceAll(".", ","),
                               style: const TextStyle(fontSize: 25),
                             ),
                           ),
@@ -80,7 +88,11 @@ class _SemesterEvaluationsState extends State<SemesterEvaluations> {
                           title: Text(evaluation.title),
                           subtitle: Text(evaluation.typeWord),
                           leading: Text(
-                            evaluation.grade == -1 ? " T" : evaluation.grade.toString().replaceAll(".", ","),
+                            evaluation.grade == -1
+                                ? " T"
+                                : evaluation.grade
+                                    .toString()
+                                    .replaceAll(".", ","),
                             style: const TextStyle(fontSize: 20),
                           ),
                         ),

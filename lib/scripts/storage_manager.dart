@@ -1,9 +1,11 @@
 import "dart:convert";
 
+import "package:campus_dual_android/scripts/auth_strategy.dart";
 import "package:campus_dual_android/scripts/campus_dual_manager.models.dart";
 import "package:flutter/material.dart";
 import "package:shared_preferences/shared_preferences.dart";
 import "package:flutter_secure_storage/flutter_secure_storage.dart";
+import "package:webview_flutter/webview_flutter.dart";
 
 enum Type { int, double, string, bool, stringList }
 
@@ -29,7 +31,8 @@ class StorageManager {
     }
   }
 
-  Future<void> _saveData(SharedPreferences source, String key, dynamic value) async {
+  Future<void> _saveData(
+      SharedPreferences source, String key, dynamic value) async {
     if (value is int) {
       await source.setInt(key, value);
     }
@@ -47,9 +50,8 @@ class StorageManager {
     }
   }
 
-  // If the app is reinstalled, the old flutterSecureStorage data is still there but the key has changed which will likely cause issues
-  // So on the first launch, all the stored data should be deleted, as it should be
-  // FEATURE: Add  <application android:allowBackup="false" android:fullBackupContent="false"> to the android manifest
+  // On first launch after reinstall, clear leftover secure storage entries.
+  // TODO: pin android:allowBackup=false on the manifest.
   Future<void> fixFirstLaunchIssues() async {
     final disk = await SharedPreferences.getInstance();
     if (_getData(disk, "first_run", type: Type.bool) ?? true) {
@@ -60,17 +62,19 @@ class StorageManager {
   }
 
   Future<void> clearAll() async {
-    // Things to persist
     final theme = await loadTheme();
     final evaluationRules = await loadObjectList("evaluationRules");
     final useFuzzyColors = await loadBool("useFuzzyColor");
 
     final disk = await SharedPreferences.getInstance();
     disk.clear();
-    const secureDisk = FlutterSecureStorage();
-    await secureDisk.deleteAll();
+    try {
+      const secureDisk = FlutterSecureStorage();
+      await secureDisk.deleteAll();
+    } catch (e) {
+      // macOS dev runs without keychain entitlements can't delete entries.
+    }
 
-    // Persist
     saveTheme(theme);
     if (evaluationRules != null) {
       saveObjectList("evaluationRules", evaluationRules);
@@ -80,12 +84,65 @@ class StorageManager {
     }
   }
 
+  /// Wipe the in-app WebView's on-disk cookie jar.
+  /// SharedPreferences alone is not enough; the WebView has its own store.
+  Future<bool> clearWebViewCookies() async {
+    debugPrint("[cda] StorageManager.clearWebViewCookies: starting");
+    try {
+      final had = await WebViewCookieManager().clearCookies();
+      debugPrint(
+          "[cda] StorageManager.clearWebViewCookies: completed had=$had");
+      return had;
+    } catch (e) {
+      debugPrint("[cda] StorageManager.clearWebViewCookies: threw $e");
+      return false;
+    }
+  }
+
+  /// Persist captured fep.campus-dual.de session cookies for replay.
+  /// Cookies exceed the 4 KB per-value limit of secure storage on Android.
+  Future<void> saveApiCookies(List<Map<String, String>> cookies) async {
+    final disk = await SharedPreferences.getInstance();
+    await _saveData(disk, "apiCookies", jsonEncode(cookies));
+  }
+
+  Future<List<Map<String, String>>?> loadApiCookies() async {
+    final disk = await SharedPreferences.getInstance();
+    final raw = _getData(disk, "apiCookies", type: Type.string);
+    if (raw == null) return null;
+    final decoded = jsonDecode(raw) as List<dynamic>;
+    return decoded
+        .map((e) => (e as Map<String, dynamic>).map(
+              (k, v) => MapEntry(k, v.toString()),
+            ))
+        .toList();
+  }
+
+  Future<void> clearApiCookies() async {
+    final disk = await SharedPreferences.getInstance();
+    await disk.remove("apiCookies");
+  }
+
+  /// Persist the user's seminar group (e.g. "3IT24-1"). The Stundenplan
+  /// scraper uses it as the `AktWert` query parameter on
+  /// stundenplan.ba-dresden.de.
+  Future<void> saveSeminarGroup(String value) async {
+    final disk = await SharedPreferences.getInstance();
+    await _saveData(disk, "seminarGroup", value);
+  }
+
+  Future<String?> loadSeminarGroup() async {
+    final disk = await SharedPreferences.getInstance();
+    return _getData(disk, "seminarGroup", type: Type.string);
+  }
+
   Future<UserCredentials?> loadUserAuthData() async {
     const secureDisk = FlutterSecureStorage();
     final String username = await secureDisk.read(key: "username") ?? "";
     final String password = await secureDisk.read(key: "password") ?? "";
     final String hash = await secureDisk.read(key: "hash") ?? "";
-    final bool isDummy = bool.tryParse(await secureDisk.read(key: "isDummy") ?? "") ?? false;
+    final bool isDummy =
+        bool.tryParse(await secureDisk.read(key: "isDummy") ?? "") ?? false;
 
     if (username == "" || hash == "" || password == "") {
       return null;
@@ -95,11 +152,18 @@ class StorageManager {
   }
 
   Future<void> saveUserAuthData(UserCredentials data) async {
-    const secureDisk = FlutterSecureStorage();
-    secureDisk.write(key: "username", value: data.username);
-    secureDisk.write(key: "password", value: data.password);
-    secureDisk.write(key: "hash", value: data.hash);
-    secureDisk.write(key: "isDummy", value: data.isDummy.toString());
+    // macOS dev runs throw errSecMissingEntitlement (-34018) on writes;
+    // OPAL on macOS relies on the WebView jar so this is best-effort.
+    try {
+      const secureDisk = FlutterSecureStorage();
+      await secureDisk.write(key: "username", value: data.username);
+      await secureDisk.write(key: "password", value: data.password);
+      await secureDisk.write(key: "hash", value: data.hash);
+      await secureDisk.write(key: "isDummy", value: data.isDummy.toString());
+    } catch (e) {
+      debugPrint(
+          "[cda] StorageManager.saveUserAuthData: secure disk unavailable: $e");
+    }
   }
 
   Future<ThemeMode> loadTheme() async {
@@ -146,7 +210,8 @@ class StorageManager {
 
   Future<List<Map<String, dynamic>>?> loadObjectList(String key) async {
     final disk = await SharedPreferences.getInstance();
-    final jsonData = _getData(disk, key, type: Type.stringList) as List<String>?;
+    final jsonData =
+        _getData(disk, key, type: Type.stringList) as List<String>?;
     if (jsonData == null) {
       return null;
     }
@@ -176,5 +241,25 @@ class StorageManager {
   Future<void> saveBool(String key, bool value) async {
     final disk = await SharedPreferences.getInstance();
     _saveData(disk, key, value);
+  }
+
+  Future<AuthBackend> loadAuthBackend() async {
+    final raw = await loadAuthBackendRaw();
+    return AuthBackend.values.firstWhere(
+      (e) => e.name == raw,
+      orElse: () => AuthBackend.sap,
+    );
+  }
+
+  /// Returns the raw saved value or null if nothing has ever been persisted.
+  /// Lets callers distinguish "first launch" from "saved as some backend".
+  Future<String?> loadAuthBackendRaw() async {
+    final disk = await SharedPreferences.getInstance();
+    return _getData(disk, "authBackend", type: Type.string);
+  }
+
+  Future<void> saveAuthBackend(AuthBackend value) async {
+    final disk = await SharedPreferences.getInstance();
+    _saveData(disk, "authBackend", value.name);
   }
 }

@@ -27,10 +27,13 @@ FutureOr<void> backgroundCallback(Uri? data) async {
         try {
           debugPrint("Reloading timetable and updating widget...");
           // Load campus dual certificate
-          ByteData data = await PlatformAssetBundle().load('assets/ca/GEANT TLS RSA 1.crt');
-          SecurityContext.defaultContext.setTrustedCertificatesBytes(data.buffer.asUint8List());
+          ByteData data =
+              await PlatformAssetBundle().load('assets/ca/GEANT TLS RSA 1.crt');
+          SecurityContext.defaultContext
+              .setTrustedCertificatesBytes(data.buffer.asUint8List());
 
-          bool useUntrustedHTTP = await StorageManager().loadBool("useUntrustedHTTP") ?? false;
+          bool useUntrustedHTTP =
+              await StorageManager().loadBool("useUntrustedHTTP") ?? false;
           CampusDualManager.insecureMode = useUntrustedHTTP;
 
           // Load the user auth data
@@ -44,13 +47,19 @@ FutureOr<void> backgroundCallback(Uri? data) async {
           // Fetch the timetable from campus dual
           final nowDay = DateTime.now();
           const bufferSize = 365;
-          final lessons = await CampusDualManager().fetchTimeTable(nowDay.subtract(const Duration(days: bufferSize)), nowDay.add(const Duration(days: bufferSize)));
+          final lessons = await CampusDualManager().fetchTimeTable(
+              nowDay.subtract(const Duration(days: bufferSize)),
+              nowDay.add(const Duration(days: bufferSize)));
 
           // Save the timetable to the storage
-          await StorageManager().saveObject("timetable", lessons.map((key, value) => MapEntry(key.toIso8601String(), value.map((e) => e.toJson()).toList())));
+          await StorageManager().saveObject(
+              "timetable",
+              lessons.map((key, value) => MapEntry(key.toIso8601String(),
+                  value.map((e) => e.toJson()).toList())));
 
           // Save the last update time
-          await StorageManager().saveDateTime("timetableUpdateTime", DateTime.now());
+          await StorageManager()
+              .saveDateTime("timetableUpdateTime", DateTime.now());
 
           // Notify the widget to update
           updateWidget();
@@ -91,7 +100,7 @@ void listenWidgetLaunchStream(Stream<Uri?> stream, Future<Uri?> initialState) {
   }
 
   // Handle the initial state when the app is launched
-  Future.delayed(Duration(milliseconds: 100), () {
+  Future.delayed(const Duration(milliseconds: 100), () {
     initialState.then(handleData);
   });
 
