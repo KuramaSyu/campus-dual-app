@@ -11,6 +11,9 @@ import 'package:http/io_client.dart';
 import 'package:http_cookie_store/http_cookie_store.dart';
 import 'package:html/parser.dart';
 import './campus_dual_manager.models.dart';
+import 'auth_strategy.dart';
+import 'auth_strategy_sap.dart';
+import 'auth_strategy_opal.dart';
 
 class CampusDualManager {
   // ---------------------------------------------------------------------------------------------------------------------------------------------
@@ -50,12 +53,39 @@ class CampusDualManager {
   static Future<CampusDualManager> withSharedSession() async {
     final manager = CampusDualManager();
     if (userCreds!.isDummy) return manager;
-    manager.sharedSession = await manager._initAuthSession();
+    manager.sharedSession = await manager._ensureSharedSession();
     return manager;
   }
 
-  // Fallback if the certificate is not trusted
-  http.Client _createHttpClient() {
+  /// Return the existing shared session or bootstrap a fresh one via the
+  /// active strategy. All scrapers that need an authenticated cookie jar go
+  /// through this helper so we can swap auth backends in one place.
+  Future<CookieClient> _ensureSharedSession() async {
+    if (sharedSession != null) {
+      debugPrint(
+          "[cda] _ensureSharedSession: reusing shared jar (${sharedSession!.store.cookies.length} cookies)");
+      return sharedSession!;
+    }
+    debugPrint("[cda] _ensureSharedSession: bootstrapping new session via strategy");
+    final session = await _strategy().login(
+      username: userCreds!.username,
+      password: userCreds!.password,
+    );
+    if (session.client is! CookieClient) {
+      throw Exception("AuthStrategy must return a CookieClient-backed session");
+    }
+    final cookieClient = session.client as CookieClient;
+    sharedSession = cookieClient;
+    // Also refresh the in-memory credentials so callers see the new hash.
+    userCreds = session.credentials;
+    debugPrint(
+        "[cda] _ensureSharedSession: ready jar size=${cookieClient.store.cookies.length}");
+    return cookieClient;
+  }
+
+  // Fallback if the certificate is not trusted. Exposed statically so the
+  // strategy implementations can build their own clients the same way.
+  static http.Client createHttpClient() {
     if (insecureMode) {
       final httpClient = HttpClient()..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
       return IOClient(httpClient);
@@ -64,8 +94,20 @@ class CampusDualManager {
     return IOClient(HttpClient());
   }
 
+  // Strategy selector. Defaults to OPAL (launchpad); SAP stays as the
+  // legacy opt-in for users that still need the self-service portal scrapers.
+  static AuthBackend activeBackend = AuthBackend.opal;
+  static AuthStrategy _strategy() {
+    switch (activeBackend) {
+      case AuthBackend.sap:
+        return SapLoginStrategy();
+      case AuthBackend.opal:
+        return OpalSamlStrategy();
+    }
+  }
+
   Future<http.Response> _fetch(String uri) async {
-    final client = _createHttpClient();
+    final client = createHttpClient();
     final response = await client.get(Uri.parse(uri));
 
     if (response.statusCode == 200) {
@@ -85,55 +127,7 @@ class CampusDualManager {
     return parse(utf8.decode(response.bodyBytes));
   }
 
-  /*
-  * This function initializes the session cookie and therefore logs in the user
-  */
-  Future<CookieClient> _initAuthSession({String? username, String? password}) async {
-    final Uri loginUri = Uri.parse("https://erp.campus-dual.de/sap/bc/webdynpro/sap/zba_initss?sap-client=100&sap-language=de&uri=https%3a%2f%2fselfservice.campus-dual.de%2findex%2flogin");
-
-    CookieClient session = CookieClient(inner: _createHttpClient());
-
-    // Initial request to get the XSRF token and the xsrf cookie
-    final initResponse = await session.get(loginUri, headers: stdHeaders);
-    if (initResponse.statusCode != 200) {
-      throw Exception("Failed to initialize the login session");
-    }
-
-    // Parse the response and get the XSRF token
-    final doc = parse(initResponse.body);
-    // Get the XSRF token. Hint: The token hides in an hidden input field
-    final xsrfToken = doc.querySelector("input[name='sap-login-XSRF']")?.attributes["value"];
-    if (xsrfToken == null) {
-      throw Exception("Failed to get the XSRF token");
-    }
-
-    // Request to login and get the session cookie
-    final loginResponse = await session.post(
-      loginUri,
-      headers: stdHeaders,
-      body: {
-        "FOCUS_ID": "sap-user",
-        "sap-system-login-oninputprocessing": "onLogin",
-        "sap-urlscheme": "",
-        "sap-system-login": "onLogin",
-        "sap-system-login-basic_auth": "",
-        "sap-client": "100",
-        "sap-language": "DE",
-        "sap-accessibility": "",
-        "sap-login-XSRF": xsrfToken,
-        "sap-system-login-cookie_disabled": "",
-        "sap-user": username ?? userCreds!.username,
-        "sap-password": password ?? userCreds!.password,
-        "SAPEVENTQUEUE": "Form_Submit~E002Id~E004SL__FORM~E003~E002ClientAction~E004submit~E005ActionUrl~E004~E005ResponseData~E004full~E005PrepareScript~E004~E003~E002~E003"
-      },
-    );
-
-    if (loginResponse.statusCode != 302 || loginResponse.body.contains("loginForm")) {
-      throw Exception("Failed to login");
-    }
-
-    return session;
-  }
+  // Legacy SAP/XSRF login body now lives in auth_strategy_sap.dart.
 
   Future<ExamStats> fetchExamStats() async {
     if (userCreds!.isDummy) return ExamStats.dummy();
@@ -156,37 +150,75 @@ class CampusDualManager {
     return int.parse(response.body);
   }
 
-  Future<Map<DateTime, List<Lesson>>> fetchTimeTable(DateTime start, DateTime end) async {
-    if (userCreds!.isDummy) return {};
-    final response = await _fetch(addQueryParams(userCreds!.addAuthParams("https://selfservice.campus-dual.de/room/json"), {
-      "start": (start.millisecondsSinceEpoch / 1000).toString(),
-      "end": (end.millisecondsSinceEpoch / 1000).toString(),
-    }));
+  /// Hits the new SAP Fiori launchpad OData service instead of the legacy
+/// `/selfservice.campus-dual.de/room/json` endpoint. Auth uses the SAP
+/// session cookie captured by the OPAL/SAP strategy, not the old hash.
+Future<List<dynamic>> _fetchODataEvents(DateTime start, DateTime end) async {
+  final filter = oDataDateRangeFilter("Start", "End", start, end);
+  final queryParams = {
+    r"\$filter": filter,
+    r"\$format": "json",
+    r"\$top": "1000",
+  };
+  final uri = "https://fep.campus-dual.de/sap/opu/odata/sap/ZCM_EM_STUDENT_TIMETABLE_SRV/EventListSet?${buildODataQuery(queryParams)}";
 
-    final List<dynamic> json = jsonDecode(response.body) as List<dynamic>;
-
-    // // Filter out every item in json, which is not in the timeframe start to end
-    // json.removeWhere((element) {
-    //   final DateTime elStart = DateTime.fromMillisecondsSinceEpoch((element["start"] as int) * 1000);
-    //   final DateTime elEnd = DateTime.fromMillisecondsSinceEpoch((element["end"] as int) * 1000);
-
-    //   return elStart.isBefore(start) || elEnd.isAfter(end);
-    // });
-
-    final Map<DateTime, List<Lesson>> lessons = {};
-    for (final element in json) {
-      final lesson = Lesson.fromData(element as Map<String, dynamic>);
-      final date = lesson.start.trim();
-
-      if (lessons.containsKey(date)) {
-        lessons[date]!.add(lesson);
-      } else {
-        lessons[date] = [lesson];
-      }
-    }
-
-    return lessons;
+  final client = await _ensureSharedSession();
+  debugPrint("[cda] _fetchODataEvents: jar size=${client.store.cookies.length}");
+  for (final c in client.store.cookies) {
+    debugPrint(
+        "[cda] _fetchODataEvents jar: name=${c.name} domain=${c.domain} path=${c.path} valueLen=${c.value.length}");
   }
+  debugPrint("[cda] _fetchODataEvents: GET $uri");
+  final response = await client.get(Uri.parse(uri), headers: {
+    "Accept": "application/json",
+    "X-Requested-With": "XMLHttpRequest",
+    "sap-language": "DE",
+    "sap-client": "100",
+  });
+  debugPrint(
+      "[cda] _fetchODataEvents: status=${response.statusCode} bodyLen=${response.body.length}");
+
+  if (response.statusCode != 200) {
+    throw Exception("Failed to fetch timetable (${response.statusCode})");
+  }
+
+  final body = jsonDecode(response.body);
+  // OData v2 envelope differs based on \$format. With \$format=json we get
+  // {results: [...]} directly. Without it we get {d: {results: [...]}}.
+  if (body is Map<String, dynamic>) {
+    if (body.containsKey("results")) {
+      final results = body["results"] as List<dynamic>;
+      debugPrint(
+          "[cda] _fetchODataEvents: ${results.length} rows returned");
+      return results;
+    }
+    final d = body["d"];
+    if (d is Map<String, dynamic> && d.containsKey("results")) {
+      final results = d["results"] as List<dynamic>;
+      debugPrint(
+          "[cda] _fetchODataEvents: ${results.length} rows returned (d{in: true})");
+      return results;
+    }
+  }
+  throw Exception("Unexpected OData response shape: ${response.body}");
+}
+
+Future<Map<DateTime, List<Lesson>>> fetchTimeTable(DateTime start, DateTime end) async {
+  if (userCreds!.isDummy) return {};
+  final rows = await _fetchODataEvents(start, end);
+
+  final Map<DateTime, List<Lesson>> lessons = {};
+  for (final raw in rows) {
+    final lesson = eventListToLesson(raw as Map<String, dynamic>);
+    final date = lesson.start.trim();
+    if (lessons.containsKey(date)) {
+      lessons[date]!.add(lesson);
+    } else {
+      lessons[date] = [lesson];
+    }
+  }
+  return lessons;
+}
 
   Future<Notifications> fetchNotifications() async {
     if (userCreds!.isDummy) return Notifications.dummy();
@@ -204,7 +236,7 @@ class CampusDualManager {
   }
 
   Future<String> getAuthToken() async {
-    final session = sharedSession ?? await _initAuthSession();
+    final session = await _ensureSharedSession();
 
     final token = session.store.cookies.firstWhere(
       (cookie) => cookie.name == "MYSAPSSO2",
@@ -216,7 +248,7 @@ class CampusDualManager {
 
   Future<GeneralUserData> scrapeGeneralUserData() async {
     if (userCreds!.isDummy) return GeneralUserData.dummy();
-    final session = sharedSession ?? await _initAuthSession();
+    final session = await _ensureSharedSession();
     final doc = await _scrape(session, "https://selfservice.campus-dual.de/index/login");
 
     final studInfo = doc.querySelector("#studinfo")!.querySelector("td")!;
@@ -268,25 +300,25 @@ class CampusDualManager {
       throw Exception("No user credentials provided");
     }
 
-    final session = sharedSession ?? await _initAuthSession(username: username, password: password);
-    final doc = await _scrape(session, "https://selfservice.campus-dual.de/index/login");
-
-    final scriptTag = doc.querySelector("#main")?.querySelector("script")!.innerHtml;
-
-    final hashRegExp = RegExp(r'hash="([^"]*)"');
-    final match = hashRegExp.firstMatch(scriptTag!);
-
-    if (match != null && match.groupCount > 0) {
-      final hash = match.group(1)!;
-      return hash;
-    } else {
+    // If a shared session already exists, pull the hash from the page.
+    // Otherwise bootstrap via the active strategy.
+    if (sharedSession != null) {
+      final doc = await _scrape(sharedSession!, "https://selfservice.campus-dual.de/index/login");
+      final scriptTag = doc.querySelector("#main")?.querySelector("script")!.innerHtml;
+      final match = RegExp(r'hash="([^"]*)"').firstMatch(scriptTag!);
+      if (match != null && match.groupCount > 0) {
+        return match.group(1)!;
+      }
       throw Exception("Failed to scrape hash");
     }
+
+    await _ensureSharedSession();
+    return userCreds!.hash;
   }
 
   Future<List<MasterEvaluation>> scrapeEvaluations() async {
     if (userCreds!.isDummy) return [MasterEvaluation.dummy()];
-    final session = sharedSession ?? await _initAuthSession();
+    final session = await _ensureSharedSession();
     final doc = await _scrape(session, "https://selfservice.campus-dual.de/acwork/index");
 
     final table = doc.querySelector("#acwork")!.querySelector("tbody")!;
